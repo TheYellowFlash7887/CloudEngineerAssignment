@@ -1,0 +1,60 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  
+Parameters:
+  
+Metadata:
+  
+Mappings:
+  
+Conditions:
+  
+Resources:
+  LogicalID:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      AssociatedRoles:
+        AssociatedRoles
+      AvailabilityZones:
+        AvailabilityZones
+      BacktrackWindow: Number
+      BackupRetentionPeriod: Number
+      CopyTagsToSnapshot: false
+      DBClusterIdentifier: "String"
+      DBClusterParameterGroupName: "String"
+      DBSubnetGroupName: "String"
+      DatabaseName: "String"
+      DeletionProtection: false
+      EnableCloudwatchLogsExports:
+        EnableCloudwatchLogsExports
+      EnableHttpEndpoint: false
+      EnableIAMDatabaseAuthentication: false
+      Engine: "String" # Required
+      EngineMode: "String"
+      EngineVersion: "String"
+      GlobalClusterIdentifier: "String"
+      KmsKeyId: "String"
+      MasterUserPassword: "String"
+      MasterUsername: "String"
+      Port: Number
+      PreferredBackupWindow: "String"
+      PreferredMaintenanceWindow: "String"
+      ReplicationSourceIdentifier: "String"
+      RestoreType: "String"
+      ScalingConfiguration:
+        AutoPause: false
+        MaxCapacity: Number
+        MinCapacity: Number
+        SecondsUntilAutoPause: Number
+      SnapshotIdentifier: "Number"
+      SourceDBClusterIdentifier: "Number"
+      SourceRegion: "Number"
+      StorageEncrypted: false
+      Tags:
+        Tags
+      UseLatestRestorableTime: false
+      VpcSecurityGroupIds:
+        VpcSecurityGroupIds
+Transform:
+  
+Outputs:

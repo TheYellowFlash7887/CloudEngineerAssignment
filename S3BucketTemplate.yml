@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: A template that deploys an S3 bucket
+  
+Parameters:
+  
+Metadata:
+  
+Mappings:
+  
+Conditions:
+  
+Resources:
+  LogicalID:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccelerateConfiguration:
+        AccelerationStatus: "String"
+      AccessControl: "String"
+      AnalyticsConfigurations:
+        AnalyticsConfigurations
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          -
+      BucketName: "String"
+      CorsConfiguration:
+        CorsRules:
+          -
+      IntelligentTieringConfigurations:
+        IntelligentTieringConfigurations
+      InventoryConfigurations:
+        InventoryConfigurations
+      LifecycleConfiguration:
+        Rules:
+          -
+      LoggingConfiguration:
+        DestinationBucketName: "String"
+        LogFilePrefix: "String"
+      MetricsConfigurations:
+        MetricsConfigurations
+      NotificationConfiguration:
+        LambdaConfigurations:
+          -
+        QueueConfigurations:
+          -
+        TopicConfigurations:
+          -
+      ObjectLockConfiguration:
+        ObjectLockEnabled: "String"
+      ObjectLockEnabled: false
+      OwnershipControls:
+        Rules:
+          -
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      ReplicationConfiguration:
+        Role: "false"
+        Rules:
+          -
+      Tags:
+        Tags
+      VersioningConfiguration:
+        Status: "false"
+      WebsiteConfiguration:
+        ErrorDocument: "String"
+        IndexDocument: "String"
+        RoutingRules:
+          -
+Transform:
+  
+Outputs:
