@@ -1,60 +1,608 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: |
-  
+ 
+Description: >-
+  This CloudFormation creates the Amazon Aurora MySQL, IAM and CloudWatch resources required for demonstrating the
+  best practices for Aurora Cluster deployment. This template can be used for Aurora PostgreSQL with modifications.
+
 Parameters:
+  DatabaseName:
+    Type: String
+    Description: Name of the Database
   
-Metadata:
+  DBUsername:
+    Type: String
+    Description: Name of the master user
   
-Mappings:
+  AuroraEngine:
+    Type: String
+    Description: Aurora MySQL
+    Default: 'aurora-mysql' 
+
+  EngineVersion:
+    Description: Database engine version
+    Type: String
+    Default: '8.0.mysql_aurora.3.02.0'
+
+  WriterInstanceType:
+    Type: String
+    Description: Writer instance type
+    Default: 'db.r6g.large'
   
+  ReplicaInstanceType:
+    Type: String
+    Description: Replica Instance type
+    Default: 'db.r6g.large'
+
+  DatabaseVpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Select the VPC where the database will to be created. Used to define DB security group.
+  
+  FirstSubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Select a subnet id for the database subnet. Preferably private subnet
+  
+  SecondSubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Select a second subnet ID for database subnet. Preferably private subnet
+  
+  VPCIDCIDR:
+    Type: String
+    Description: VPC CIDR, used for DB security group
+    Default: 10.192.0.0/16
+
+  DBPort:
+    Type: Number
+    Description: Database port
+    Default: 3306
+    
+  EnvType:
+    Description: Environment type. For prod a writer and replica instance is created; for dev only a writer
+    Default: prod
+    Type: String
+    AllowedValues:
+      - prod
+      - dev
+  
+  EnableIAMDatabaseAuthentication:
+    Description: Enable IAM authentication for database users
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+  BackupWindow:
+    Type: String
+    Description: The daily time interval (in UTC) during which automated backups will be created. Must be in format Must be in hh24:mi-hh24:mi format
+    Default: '02:00-04:00'
+  
+  BackupRetentionPeriod:
+    Type: Number
+    Description: Period of backups to retain, must be a value from 1 to 35. 
+    Default: 7
+  
+  MaintenanceWindow:
+    Type: String
+    Description: Weekly maintenance window. ddd:hh24:mi-ddd:hh24:mi format (24H UTC clock). Minimum 60 minutes
+    Default: 'sun:23:00-mon:01:30'
+  
+  MonitoringInterval: 
+    Type: Number
+    Description: The interval, in seconds, between points when Enhanced Monitoring metrics are collected. To disable, specify 0
+    Default: 0
+    AllowedValues: [0, 1, 5, 10, 15, 30, 60]
+  
+  EnablePerformanceInsights:
+    Description: Choose whether to enable Performance Insights
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+  PerformanceInsightsRetentionPeriod:
+    Description: Performance insights retention time, valid values ​​are 7 days and 731 days (2 years)
+    Type: Number
+    Default: 7
+    AllowedValues: [7, 731]
+  
+  MinorVersionUpgrade:
+    Type: String
+    Description: Specify true or false if the minor version of the database can be updated automatically during the maintenance window
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+  
+  CPUUtilizationThreshold:
+    Description: The maximum percentage of CPU usage
+    Type: Number
+    Default: 90
+    MaxValue: 100
+  
+  FreeableMemoryThreshold:
+    Description: Free memory space available in bytes
+    Type: Number
+    Default: 2147483648 # 2 GB in Bytes
+  
+  ReplicationLagThreshold:
+    Description: The maximum replication delay in milliseconds
+    Type: Number
+    Default: 30000 # 30 seconds
+  
+  BufferCacheHitRatioThreshold:
+    Description: Buffer pool hit ratio
+    Type: Number
+    Default: 90 # 90 percent
+  
+  DeadlocksThreshold:
+    Description: Number of deadlocks
+    Type: Number
+    Default: 10
+  
+  LoginFailuresThreshold:
+    Description: Number of database login failures
+    Type: Number
+    Default: 10
+ 
+  SNSTopicEmailId:
+    Description: Specify the email id to receive SNS notifications
+    Type: String
+
+
 Conditions:
-  
+  EnhancedMonitoringEnabled: !Not [!Equals [!Ref MonitoringInterval, 0]]
+  PerformanceInsightEnabled: !Equals [!Ref EnablePerformanceInsights, 'true']
+  ProdEnv: !Equals [!Ref EnvType, 'prod']
+ 
 Resources:
-  LogicalID:
-    Type: AWS::RDS::DBCluster
-    Properties:
-      AssociatedRoles:
-        AssociatedRoles
-      AvailabilityZones:
-        AvailabilityZones
-      BacktrackWindow: Number
-      BackupRetentionPeriod: Number
-      CopyTagsToSnapshot: false
-      DBClusterIdentifier: "String"
-      DBClusterParameterGroupName: "String"
-      DBSubnetGroupName: "String"
-      DatabaseName: "String"
-      DeletionProtection: false
-      EnableCloudwatchLogsExports:
-        EnableCloudwatchLogsExports
-      EnableHttpEndpoint: false
-      EnableIAMDatabaseAuthentication: false
-      Engine: "String" # Required
-      EngineMode: "String"
-      EngineVersion: "String"
-      GlobalClusterIdentifier: "String"
-      KmsKeyId: "String"
-      MasterUserPassword: "String"
-      MasterUsername: "String"
-      Port: Number
-      PreferredBackupWindow: "String"
-      PreferredMaintenanceWindow: "String"
-      ReplicationSourceIdentifier: "String"
-      RestoreType: "String"
-      ScalingConfiguration:
-        AutoPause: false
-        MaxCapacity: Number
-        MinCapacity: Number
-        SecondsUntilAutoPause: Number
-      SnapshotIdentifier: "Number"
-      SourceDBClusterIdentifier: "Number"
-      SourceRegion: "Number"
-      StorageEncrypted: false
-      Tags:
-        Tags
-      UseLatestRestorableTime: false
-      VpcSecurityGroupIds:
-        VpcSecurityGroupIds
-Transform:
   
+  MasterPassword:
+    Type: 'AWS::SecretsManager::Secret'
+    Properties:
+      Name: !Sub '/rds/${EnvType}/${DatabaseName}-MasterPassword-secret'
+      Description: 'Aurora database master password'
+      GenerateSecretString:
+        PasswordLength: 16
+        ExcludePunctuation: true
+ 
+  MasterUser:
+    Type: 'AWS::SecretsManager::Secret'
+    Properties:
+      Name: !Sub '/rds/${EnvType}/${DatabaseName}-MasterUser-secret'
+      Description: 'Aurora database master user'
+      SecretString: !Ref DBUsername
+ 
+  SecurityGroupDatabase:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: !Sub '${DatabaseName}-aurora-database-sg'
+      GroupName: !Sub '${DatabaseName}-aurora-database-sg'
+      VpcId: !Ref DatabaseVpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          CidrIp: !Ref VPCIDCIDR
+          FromPort: !Ref DBPort
+          ToPort: !Ref DBPort
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          CidrIp: '0.0.0.0/0'
+ 
+  DBSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupDescription: !Sub '${DatabaseName}-subnet-group'
+      DBSubnetGroupName: !Sub '${DatabaseName}-subnet-group'
+      SubnetIds: 
+        - !Ref FirstSubnetId
+        - !Ref SecondSubnetId
+  
+  IAMRoleRDSMonitoring:
+    Type: AWS::IAM::Role
+    Condition: EnhancedMonitoringEnabled
+    Properties:
+      RoleName: !Sub '${DatabaseName}-monitoring-role'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - monitoring.rds.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
+  
+  DatabaseAlerts:
+    Type: AWS::SNS::Topic
+    Properties: 
+      DisplayName: !Sub '${DatabaseName} SNS Topic'
+      FifoTopic: false
+      Subscription:
+        - Endpoint: !Ref SNSTopicEmailId
+          Protocol: 'email'
+  
+  DatabaseKMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: !Sub 'Key used by ${DatabaseName} aurora database cluster'
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: database-key-default
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Join 
+                - ''
+                - - 'arn:aws:iam::'
+                  - !Ref 'AWS::AccountId'
+                  - ':root'
+            Action: 'kms:*'
+            Resource: '*'
+
+  ClusterParameterGroup:
+    Type: 'AWS::RDS::DBClusterParameterGroup'
+    Properties:
+      Description: Custom cluster parameter group
+      Family: aurora-mysql8.0
+      Parameters:
+        require_secure_transport: 'ON'
+        server_audit_logging: 1
+        server_audit_events: CONNECT
+
+  WriterDBParameterGroup:
+    Type: 'AWS::RDS::DBParameterGroup'
+    Properties:
+      Description: Custom db parameter group for writer
+      Family: aurora-mysql8.0
+      Parameters:
+        sql_mode: STRICT_ALL_TABLES
+        transaction_isolation: READ-COMMITTED
+
+  ReplicaDBParameterGroup:
+    Type: 'AWS::RDS::DBParameterGroup'
+    Properties:
+      Description: Custom db parameter group for replica
+      Family: aurora-mysql8.0
+      Parameters:
+        sql_mode: STRICT_ALL_TABLES
+        transaction_isolation: READ-COMMITTED
+  ErrorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: !Sub '/aws/rds/cluster/${DatabaseName}-${AuroraEngine}-cluster/error'
+
+  AuditLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: !Sub '/aws/rds/cluster/${DatabaseName}-${AuroraEngine}-cluster/audit'   
+    
+  AuroraDBCluster:
+    Type: 'AWS::RDS::DBCluster'
+    DependsOn: 
+      - ErrorLogGroup 
+      - AuditLogGroup
+    Properties: 
+      BackupRetentionPeriod: !Ref BackupRetentionPeriod
+      DBClusterIdentifier: !Sub '${DatabaseName}-${AuroraEngine}-cluster'
+      DatabaseName: !Ref DatabaseName
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      DBClusterParameterGroupName: !Ref ClusterParameterGroup
+      DeletionProtection: true
+      EnableIAMDatabaseAuthentication: !Ref EnableIAMDatabaseAuthentication
+      Engine: !Ref AuroraEngine
+      EngineMode: 'provisioned'
+      EngineVersion: !Ref EngineVersion
+      KmsKeyId: !Ref DatabaseKMSKey
+      MasterUsername: !Join ['', ['{{resolve:secretsmanager:', !Ref MasterUser, '}}' ]]
+      MasterUserPassword: !Join ['', ['{{resolve:secretsmanager:', !Ref MasterPassword, '}}' ]]
+      Port: !Ref DBPort
+      PreferredBackupWindow: !Ref BackupWindow
+      PreferredMaintenanceWindow: !Ref MaintenanceWindow
+      StorageEncrypted: true
+      VpcSecurityGroupIds: 
+      - !Ref SecurityGroupDatabase
+  
+  WriterInstance:
+    Type: 'AWS::RDS::DBInstance'
+    DependsOn: AuroraDBCluster
+    Properties:
+      Engine: !Ref AuroraEngine
+      DBClusterIdentifier: !Ref AuroraDBCluster
+      DBInstanceClass: !Ref WriterInstanceType
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: !Ref MinorVersionUpgrade
+      DBParameterGroupName: !Ref WriterDBParameterGroup
+      EnablePerformanceInsights: !Ref EnablePerformanceInsights
+      PerformanceInsightsKMSKeyId: !If [PerformanceInsightEnabled, !Ref DatabaseKMSKey, !Ref 'AWS::NoValue']
+      PerformanceInsightsRetentionPeriod: !If [PerformanceInsightEnabled, !Ref PerformanceInsightsRetentionPeriod, !Ref 'AWS::NoValue']
+      PubliclyAccessible: false
+      MonitoringInterval: !Ref MonitoringInterval
+      MonitoringRoleArn: !If [EnhancedMonitoringEnabled, !GetAtt IAMRoleRDSMonitoring.Arn, !Ref 'AWS::NoValue']
+      PreferredMaintenanceWindow: !Ref MaintenanceWindow
+ 
+  ReplicaInstance:
+    Type: 'AWS::RDS::DBInstance'
+    Condition: ProdEnv
+    Properties:
+      Engine: !Ref AuroraEngine
+      DBClusterIdentifier: !Ref AuroraDBCluster
+      DBInstanceClass: !Ref ReplicaInstanceType
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: !Ref MinorVersionUpgrade
+      DBParameterGroupName: !Ref ReplicaDBParameterGroup
+      EnablePerformanceInsights: !Ref EnablePerformanceInsights
+      PerformanceInsightsKMSKeyId: !If [PerformanceInsightEnabled, !Ref DatabaseKMSKey, !Ref 'AWS::NoValue']
+      PerformanceInsightsRetentionPeriod: !If [PerformanceInsightEnabled, !Ref PerformanceInsightsRetentionPeriod, !Ref 'AWS::NoValue']
+      PubliclyAccessible: false
+      MonitoringInterval: !Ref MonitoringInterval
+      MonitoringRoleArn: !If [EnhancedMonitoringEnabled, !GetAtt IAMRoleRDSMonitoring.Arn, !Ref 'AWS::NoValue']
+      PreferredMaintenanceWindow: !Ref MaintenanceWindow
+
+  ClusterEventSubscription:
+    Type: 'AWS::RDS::EventSubscription'
+    Properties:
+      EventCategories:
+        - configuration change
+        - creation
+        - failure
+        - deletion
+        - failover
+        - maintenance
+        - notification
+      SnsTopicArn: !Ref DatabaseAlerts
+      SourceIds:
+        - !Ref AuroraDBCluster
+      SourceType: db-cluster
+      Enabled: true
+
+  DBEventSubscription:
+    Type: 'AWS::RDS::EventSubscription'
+    Properties:
+      EventCategories:
+        - configuration change
+        - creation
+        - failure
+        - deletion
+        - availability
+        - failover
+        - low storage
+        - maintenance
+        - notification
+        - read replica
+        - recovery
+        - restoration
+      SnsTopicArn: !Ref DatabaseAlerts
+      SourceIds:
+        - !Ref WriterInstance
+        - !If [ProdEnv, !Ref ReplicaInstance, !Ref "AWS::NoValue"]
+      SourceType: db-instance
+      Enabled: true
+
+  DBLogsMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    DependsOn: WriterInstance
+    Properties:
+      LogGroupName: !Sub '/aws/rds/cluster/${DatabaseName}-${AuroraEngine}-cluster/error'
+      FilterPattern: '?ERROR ?Exception ?Aborted'
+      MetricTransformations:
+      - MetricValue: '1'
+        DefaultValue: 0
+        MetricNamespace: !Sub '${DatabaseName}-database-errorlog-filter'
+        MetricName: keyword-filter
+
+  MetricFilterAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    DependsOn: DBLogsMetricFilter
+    Properties:
+      AlarmDescription: 'An error reported in MySQL error log file. Kindly check'
+      Namespace: !Sub '${DatabaseName}-database-errorlog-filter'
+      MetricName: keyword-filter           
+      Statistic: Sum  
+      Period: 60
+      EvaluationPeriods: 5             
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: 5
+      TreatMissingData: notBreaching
+      AlarmActions: 
+       - !Ref DatabaseAlerts
+      OKActions:
+       - !Ref DatabaseAlerts     
+      Dimensions:
+      - Name: DBClusterIdentifier
+        Value: !Ref AuroraDBCluster
+
+  DatabaseCPUUtilizationTooHighAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmDescription: !Sub 'CPU utilization over last 10 minutes higher than ${CPUUtilizationThreshold}%'
+      Namespace: 'AWS/RDS'
+      MetricName: CPUUtilization
+      Statistic: Average  
+      Period: 60
+      EvaluationPeriods: 10             
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: !Ref CPUUtilizationThreshold
+      TreatMissingData: breaching
+      AlarmActions: 
+       - !Ref DatabaseAlerts
+      OKActions:
+       - !Ref DatabaseAlerts     
+      Dimensions:
+      - Name: DBInstanceIdentifier
+        Value: !Ref WriterInstance
+ 
+  DatabaseFreeableMemoryTooLowAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmDescription: 'Free memory over last 15 minutes too low, performance may suffer.'
+      Namespace: 'AWS/RDS'
+      MetricName: FreeableMemory           
+      Statistic: Average  
+      Period: 60
+      EvaluationPeriods: 15             
+      ComparisonOperator: LessThanThreshold
+      Threshold: !Ref FreeableMemoryThreshold
+      TreatMissingData: breaching
+      AlarmActions: 
+       - !Ref DatabaseAlerts
+      OKActions:
+       - !Ref DatabaseAlerts     
+      Dimensions:
+      - Name: DBInstanceIdentifier
+        Value: !Ref WriterInstance
+  
+  DatabaseReplicaLagTooHighAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    Condition: ProdEnv
+    Properties:
+      AlarmDescription: !Sub 'Replication lag over last 10 minutes higher than ${ReplicationLagThreshold} seconds, please check'
+      MetricName: AuroraReplicaLag
+      Namespace: 'AWS/RDS'
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 10
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: !Ref ReplicationLagThreshold
+      AlarmActions: 
+       - !Ref DatabaseAlerts
+      OKActions:
+       - !Ref DatabaseAlerts    
+      Dimensions:
+      - Name: DBClusterIdentifier
+        Value: !Ref AuroraDBCluster
+ 
+  MaxStorageTooLowAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmDescription: 'Nearing Aurora max 128 TB storage limit, 15 TB remaining'
+      MetricName: AuroraVolumeBytesLeftTotal
+      Namespace: 'AWS/RDS'
+      Statistic: Average
+      Period: 1800
+      EvaluationPeriods: 10
+      ComparisonOperator: LessThanThreshold
+      Threshold: 15
+      AlarmActions: 
+       - !Ref DatabaseAlerts
+      OKActions:
+       - !Ref DatabaseAlerts    
+      Dimensions:
+      - Name: DBClusterIdentifier
+        Value: !Ref AuroraDBCluster
+
+  BufferCacheHitRatioLowAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmDescription: !Sub 'Bufferpool hit ratio less than ${BufferCacheHitRatioThreshold} %, please check'
+      MetricName: BufferCacheHitRatio
+      Namespace: 'AWS/RDS'
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 12
+      ComparisonOperator: LessThanThreshold
+      Threshold: !Ref BufferCacheHitRatioThreshold
+      AlarmActions: 
+       - !Ref DatabaseAlerts
+      OKActions:
+       - !Ref DatabaseAlerts    
+      Dimensions:
+      - Name: DBClusterIdentifier
+        Value: !Ref AuroraDBCluster
+  
+  DeadlocksHighAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmDescription: !Sub 'Deadlocks over last 5 minutes higher than ${DeadlocksThreshold}, please check'
+      MetricName: Deadlocks
+      Namespace: 'AWS/RDS'
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 5
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: !Ref DeadlocksThreshold
+      AlarmActions: 
+       - !Ref DatabaseAlerts
+      OKActions:
+       - !Ref DatabaseAlerts    
+      Dimensions:
+      - Name: DBClusterIdentifier
+        Value: !Ref AuroraDBCluster
+
+  LoginFailuresTooHighAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmDescription: !Sub 'Login Failures over last 15 minutes higher than ${LoginFailuresThreshold}, please check'
+      MetricName: LoginFailures
+      Namespace: 'AWS/RDS'
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 15
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: !Ref LoginFailuresThreshold
+      AlarmActions: 
+       - !Ref DatabaseAlerts
+      OKActions:
+       - !Ref DatabaseAlerts    
+      Dimensions:
+      - Name: DBClusterIdentifier
+        Value: !Ref AuroraDBCluster
+
+  DatabaseCPUUtilizationTooHighAlarm2:
+    Type: 'AWS::CloudWatch::Alarm'
+    Condition: ProdEnv
+    Properties:
+      AlarmDescription: !Sub 'CPU utilization over last 10 minutes higher than ${CPUUtilizationThreshold}%'
+      Namespace: 'AWS/RDS'
+      MetricName: CPUUtilization
+      Statistic: Average  
+      Period: 60
+      EvaluationPeriods: 10             
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: !Ref CPUUtilizationThreshold
+      AlarmActions: 
+       - !Ref DatabaseAlerts
+      OKActions:
+       - !Ref DatabaseAlerts     
+      Dimensions:
+      - Name: DBInstanceIdentifier
+        Value: !Ref ReplicaInstance
+  
+  DatabaseFreeableMemoryTooLowAlarm2:
+    Type: 'AWS::CloudWatch::Alarm'
+    Condition: ProdEnv
+    Properties:
+      AlarmDescription: 'Free memory over last 15 minutes too low, performance may suffer.'
+      Namespace: 'AWS/RDS'
+      MetricName: FreeableMemory           
+      Statistic: Average  
+      Period: 60
+      EvaluationPeriods: 15             
+      ComparisonOperator: LessThanThreshold
+      Threshold: !Ref FreeableMemoryThreshold
+      AlarmActions: 
+       - !Ref DatabaseAlerts
+      OKActions:
+       - !Ref DatabaseAlerts     
+      Dimensions:
+      - Name: DBInstanceIdentifier
+        Value: !Ref ReplicaInstance
+
+  ClusterEndpointAddress:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "/rds/${EnvType}/${DatabaseName}-ClusterEndpoint-secret"
+      Description: 'Aurora cluster endpoint'
+      SecretString: !GetAtt 'AuroraDBCluster.Endpoint.Address'
+ 
+  EndPointPortSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: 'Database port'      
+      Name: !Sub "/rds/${EnvType}/${DatabaseName}-port-secret"
+      SecretString: !GetAtt 'AuroraDBCluster.Endpoint.Port'    
+ 
 Outputs:
+  StackName:
+    Description: Stack name
+    Value: !Ref 'AWS::StackName'
+  RDSEndpoint:
+    Value: !Ref ClusterEndpointAddress
+    Export:
+      Name: !Sub "${DatabaseName}-ClusterEndpoint"
