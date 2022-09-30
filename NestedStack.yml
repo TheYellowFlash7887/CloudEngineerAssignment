@@ -1,0 +1,86 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Top level stack that deploys the related stacks for the assignment 
+Parameters:
+  VPCURL:
+    Description: An environment name that is prefixed to resource names
+    Type: String
+  ECSURL:
+    Description: An environment name that is prefixed to resource names
+    Type: String
+  DBURL:
+    Description: An environment name that is prefixed to resource names
+    Type: String
+  EnvironmentName:
+    Description: An environment name that is prefixed to resource names
+    Type: String
+
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.192.0.0/16
+
+  PublicSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.10.0/24
+
+  PublicSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.11.0/24
+
+  PublicSubnet3CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.12.0/24
+
+  PrivateSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.20.0/24
+
+  PrivateSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.21.0/24
+
+  PrivateSubnet3CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.22.0/24
+
+  PrivateSubnet4CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.23.0/24
+  
+  PrivateSubnet5CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.24.0/24
+
+  PrivateSubnet6CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.25.0/24
+Metadata:
+  
+Mappings:
+  
+Conditions:
+  
+Resources:
+  VPCStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      NotificationARNs:
+        NotificationARNs
+      Parameters:
+      Tags:
+        Tags
+      TemplateURL: "String" # Required
+      TimeoutInMinutes: Number
+Transform:
+  
+Outputs:
