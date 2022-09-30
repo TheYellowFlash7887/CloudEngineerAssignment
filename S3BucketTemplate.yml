@@ -1,16 +1,8 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: A template that deploys an S3 bucket
-  
-Parameters:
-  
-Metadata:
-  
-Mappings:
-  
-Conditions:
-  
+Description: A template that deploys a defaut S3 bucket
+
 Resources:
-  LogicalID:
+  SampleS3Bucket:
     Type: AWS::S3::Bucket
     Properties:
       AccelerateConfiguration:
@@ -51,23 +43,9 @@ Resources:
         Rules:
           -
       PublicAccessBlockConfiguration:
-        BlockPublicAcls: false
-        BlockPublicPolicy: false
-        IgnorePublicAcls: false
-        RestrictPublicBuckets: false
-      ReplicationConfiguration:
-        Role: "false"
-        Rules:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      
           -
-      Tags:
-        Tags
-      VersioningConfiguration:
-        Status: "false"
-      WebsiteConfiguration:
-        ErrorDocument: "String"
-        IndexDocument: "String"
-        RoutingRules:
-          -
-Transform:
-  
-Outputs:
