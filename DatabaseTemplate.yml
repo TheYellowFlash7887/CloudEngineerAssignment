@@ -8,7 +8,9 @@ Parameters:
   DatabaseName:
     Type: String
     Description: Name of the Database
-  
+  OutputSGId: 
+    Type: String
+    Description: The shared value will be passed to this parameter by parent stack.
   DBUsername:
     Type: String
     Description: Name of the master user
@@ -173,10 +175,8 @@ Resources:
       GroupName: !Sub '${DatabaseName}-aurora-database-sg'
       VpcId: !Ref DatabaseVpcId
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          CidrIp: !Ref VPCIDCIDR
-          FromPort: !Ref DBPort
-          ToPort: !Ref DBPort
+        IpProtocol: '-1'
+        SourceSecurityGroupId: !Ref OutputSGId
       SecurityGroupEgress:
         - IpProtocol: '-1'
           CidrIp: '0.0.0.0/0'

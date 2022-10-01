@@ -2,70 +2,297 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: |
   Top level stack that deploys the related stacks for the assignment 
 Parameters:
-  EnvironmentName:
-    Description: An environment name that is prefixed to resource names
+  #ECS Stack Parameters =====
+  ECSTemplateURL:
+    Description: S3 url for the ECS stack 
+    Default: https://publictemplatesfornestedstacks.s3.amazonaws.com/ECSClusterTemplate.yml
+    Type: String 
+  KeyName:
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the ECS instances.
+  VpcId:
+    Type: 'AWS::EC2::VPC::Id'
+    Description: Select a VPC that allows instances to access the Internet.
+  LBSubnetId:
+    Type: 'List<AWS::EC2::Subnet::Id>'
+    Description: Select at least two public subnets in your selected VPC.
+  DesiredCapacity:
+    Type: Number
+    Default: '1'
+    Description: Number of instances to launch in your ECS cluster.
+  MaxSize:
+    Type: Number
+    Default: '3'
+    Description: Maximum number of instances that can be launched in your ECS cluster.
+  InstanceType:
+    Description: EC2 instance type
     Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - m3.medium
+      - m3.large
+      - m3.xlarge
+      - m3.2xlarge
+      - m4.large
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+      - m4.10xlarge
+      - c4.large
+      - c4.xlarge
+      - c4.2xlarge
+      - c4.4xlarge
+      - c4.8xlarge
+      - c3.large
+      - c3.xlarge
+      - c3.2xlarge
+      - c3.4xlarge
+      - c3.8xlarge
+      - r3.large
+      - r3.xlarge
+      - r3.2xlarge
+      - r3.4xlarge
+      - r3.8xlarge
+      - i2.xlarge
+      - i2.2xlarge
+      - i2.4xlarge
+      - i2.8xlarge
+    ConstraintDescription: Please choose a valid instance type.
+#DB Tempalte Parameters === 
+  DBTemplateURL:
+    Type: String
+    Description: The S3 url for the Database stack 
+    Default: https://publictemplatesfornestedstacks.s3.amazonaws.com/DatabaseTemplate.yml
+  DatabaseName:
+    Type: String
+    Description: Name of the Database
+  
+  DBUsername:
+    Type: String
+    Description: Name of the master user
+  
+  AuroraEngine:
+    Type: String
+    Description: Aurora MySQL
+    Default: 'aurora-mysql' 
 
-  VpcCIDR:
-    Description: Please enter the IP range (CIDR notation) for this VPC
+  EngineVersion:
+    Description: Database engine version
     Type: String
+    Default: '8.0.mysql_aurora.3.02.0'
+
+  WriterInstanceType:
+    Type: String
+    Description: Writer instance type
+    Default: 'db.r6g.large'
+  
+  ReplicaInstanceType:
+    Type: String
+    Description: Replica Instance type
+    Default: 'db.r6g.large'
+  
+  FirstSubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Select a subnet id for the database subnet. Preferably private subnet
+  
+  SecondSubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Select a second subnet ID for database subnet. Preferably private subnet
+  VPCIDCIDR:
+    Type: String
+    Description: VPC CIDR, used for DB security group
     Default: 10.192.0.0/16
 
-  PublicSubnet1CIDR:
-    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+  DBPort:
+    Type: Number
+    Description: Database port
+    Default: 3306
+    
+  EnvType:
+    Description: Environment type. For prod a writer and replica instance is created; for dev only a writer
+    Default: prod
     Type: String
-    Default: 10.192.10.0/24
-
-  PublicSubnet2CIDR:
-    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
-    Type: String
-    Default: 10.192.11.0/24
-
-  PublicSubnet3CIDR:
-    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
-    Type: String
-    Default: 10.192.12.0/24
-
-  PrivateSubnet1CIDR:
-    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
-    Type: String
-    Default: 10.192.20.0/24
-
-  PrivateSubnet2CIDR:
-    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
-    Type: String
-    Default: 10.192.21.0/24
-
-  PrivateSubnet3CIDR:
-    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
-    Type: String
-    Default: 10.192.22.0/24
-
-  PrivateSubnet4CIDR:
-    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
-    Type: String
-    Default: 10.192.23.0/24
+    AllowedValues:
+      - prod
+      - dev
   
-  PrivateSubnet5CIDR:
-    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+  EnableIAMDatabaseAuthentication:
+    Description: Enable IAM authentication for database users
     Type: String
-    Default: 10.192.24.0/24
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+  BackupWindow:
+    Type: String
+    Description: The daily time interval (in UTC) during which automated backups will be created. Must be in format Must be in hh24:mi-hh24:mi format
+    Default: '02:00-04:00'
+  
+  BackupRetentionPeriod:
+    Type: Number
+    Description: Period of backups to retain, must be a value from 1 to 35. 
+    Default: 7
+  
+  MaintenanceWindow:
+    Type: String
+    Description: Weekly maintenance window. ddd:hh24:mi-ddd:hh24:mi format (24H UTC clock). Minimum 60 minutes
+    Default: 'sun:23:00-mon:01:30'
+  
+  MonitoringInterval: 
+    Type: Number
+    Description: The interval, in seconds, between points when Enhanced Monitoring metrics are collected. To disable, specify 0
+    Default: 0
+    AllowedValues: [0, 1, 5, 10, 15, 30, 60]
+  
+  EnablePerformanceInsights:
+    Description: Choose whether to enable Performance Insights
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+  PerformanceInsightsRetentionPeriod:
+    Description: Performance insights retention time, valid values ​​are 7 days and 731 days (2 years)
+    Type: Number
+    Default: 7
+    AllowedValues: [7, 731]
+  
+  MinorVersionUpgrade:
+    Type: String
+    Description: Specify true or false if the minor version of the database can be updated automatically during the maintenance window
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+  
+  CPUUtilizationThreshold:
+    Description: The maximum percentage of CPU usage
+    Type: Number
+    Default: 90
+    MaxValue: 100
+  
+  FreeableMemoryThreshold:
+    Description: Free memory space available in bytes
+    Type: Number
+    Default: 2147483648 # 2 GB in Bytes
+  
+  ReplicationLagThreshold:
+    Description: The maximum replication delay in milliseconds
+    Type: Number
+    Default: 30000 # 30 seconds
+  
+  BufferCacheHitRatioThreshold:
+    Description: Buffer pool hit ratio
+    Type: Number
+    Default: 90 # 90 percent
+  
+  DeadlocksThreshold:
+    Description: Number of deadlocks
+    Type: Number
+    Default: 10
+  
+  LoginFailuresThreshold:
+    Description: Number of database login failures
+    Type: Number
+    Default: 10
+ 
+  SNSTopicEmailId:
+    Description: Specify the email id to receive SNS notifications
+    Type: String
 
-  PrivateSubnet6CIDR:
-    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+  #S3 stack Parameters 
+
+  S3TemplateURL:
     Type: String
-    Default: 10.192.25.0/24
-Mappings:
-  
-Conditions:
-  
+    Description: The S3 url for the Database stack 
+    Default: https://publictemplatesfornestedstacks.s3.amazonaws.com/S3BucketTemplate.yml
+
+  #Ec2 Stack Parameters
+
+  EC2TemplateURL:
+    Type: String
+    Description: The location of the Ec2 template
+    Default: https://publictemplatesfornestedstacks.s3.amazonaws.com/ec2.yml
+  #Ec2 Stack Parameters
+  NoScalingECSTemplateURL:
+    Type: String
+    Description: The location of the Ec2 template
+    Default: https://publictemplatesfornestedstacks.s3.amazonaws.com/noServiceScalingECSCluster.yml
 Resources:
-  VPCStack:
+  ECSStack:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
-
-      TemplateURL: "String" # Required
-Transform:
-  
-Outputs:
+        VpcId: !Ref VpcId
+        KeyName: !Ref KeyName
+        LBSubnetId: !Join
+            - ', '
+            - !Ref LBSubnetId
+        DesiredCapacity: !Ref DesiredCapacity
+        MaxSize: !Ref MaxSize
+        InstanceType: !Ref InstanceType
+      TemplateURL: !Ref ECSTemplateURL
+  DBStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: ECSStack
+    Properties:
+      Parameters:
+        DatabaseName: !Ref DatabaseName
+        OutputSGId: !GetAtt ECSStack.Outputs.ecsSecurityGroupID
+        DBUsername: !Ref DBUsername
+        AuroraEngine: !Ref AuroraEngine
+        EngineVersion: !Ref EngineVersion
+        WriterInstanceType: !Ref WriterInstanceType
+        ReplicaInstanceType: !Ref ReplicaInstanceType
+        DatabaseVpcId: !Ref VpcId
+        FirstSubnetId: !Ref FirstSubnetId
+        SecondSubnetId: !Ref SecondSubnetId
+        VPCIDCIDR: !Ref VPCIDCIDR
+        DBPort: !Ref DBPort
+        EnvType: !Ref EnvType
+        EnableIAMDatabaseAuthentication: !Ref EnableIAMDatabaseAuthentication
+        BackupWindow: !Ref BackupWindow
+        BackupRetentionPeriod: !Ref BackupRetentionPeriod
+        MaintenanceWindow: !Ref MaintenanceWindow
+        MonitoringInterval: !Ref MonitoringInterval
+        EnablePerformanceInsights: !Ref EnablePerformanceInsights
+        PerformanceInsightsRetentionPeriod: !Ref PerformanceInsightsRetentionPeriod
+        MinorVersionUpgrade: !Ref MinorVersionUpgrade
+        CPUUtilizationThreshold: !Ref CPUUtilizationThreshold
+        FreeableMemoryThreshold: !Ref FreeableMemoryThreshold
+        ReplicationLagThreshold: !Ref ReplicationLagThreshold
+        BufferCacheHitRatioThreshold: !Ref BufferCacheHitRatioThreshold
+        DeadlocksThreshold: !Ref DeadlocksThreshold
+        LoginFailuresThreshold: !Ref LoginFailuresThreshold
+        SNSTopicEmailId: !Ref SNSTopicEmailId
+      TemplateURL: !Ref DBTemplateURL
+  NoScalingECSStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        VpcId: !Ref VpcId
+        KeyName: !Ref KeyName
+        SubnetId: !Join
+            - ', '
+            - !Ref LBSubnetId
+        DesiredCapacity: !Ref DesiredCapacity
+        MaxSize: !Ref MaxSize
+        InstanceType: !Ref InstanceType
+      TemplateURL: !Ref NoScalingECSTemplateURL
+  S3Stack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref S3TemplateURL
+  EC2Stack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        KeyName: !Ref KeyName
+        VpcId: !Ref VpcId
+        SubnetId: !Join
+            - ', '
+            - !Ref LBSubnetId
+        InstanceType: !Ref InstanceType
+        DesiredCapacity: !Ref DesiredCapacity
+        MaxSize: !Ref MaxSize
+      TemplateURL: !Ref EC2TemplateURL
