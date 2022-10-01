@@ -9,6 +9,9 @@ Parameters:
   SubnetId:
     Type: 'List<AWS::EC2::Subnet::Id>'
     Description: Select at least two subnets in your selected VPC.
+  PublicSubnetId:
+    Type: 'List<AWS::EC2::Subnet::Id>'
+    Description: Select the public subnet for your loadbalancer.
   DesiredCapacity:
     Type: Number
     Default: '1'
@@ -175,7 +178,7 @@ Resources:
       LoadBalancerAttributes:
         - Key: idle_timeout.timeout_seconds
           Value: '30'
-      Subnets: !Ref SubnetId
+      Subnets: !Ref PublicSubnetId
       SecurityGroups:
         - !Ref EcsSecurityGroup
   ALBListener:
@@ -406,17 +409,3 @@ Resources:
       Path: /
       Roles:
         - !Ref EC2Role
-Outputs:
-  ecsservice:
-    Value: !Ref service
-  ecscluster:
-    Value: !Ref ECSCluster
-  ECSALB:
-    Description: Your ALB DNS URL
-    Value: !Join 
-      - ''
-      - - !GetAtt 
-          - ECSALB
-          - DNSName
-  taskdef:
-    Value: !Ref taskdefinition

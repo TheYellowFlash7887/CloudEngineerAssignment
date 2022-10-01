@@ -4,44 +4,7 @@ Description: A template that deploys a defaut S3 bucket
 Resources:
   SampleS3Bucket:
     Type: AWS::S3::Bucket
-    Properties:
-      AccelerateConfiguration:
-        AccelerationStatus: "String"
-      AccessControl: "String"
-      AnalyticsConfigurations:
-        AnalyticsConfigurations
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          -
-      BucketName: "String"
-      CorsConfiguration:
-        CorsRules:
-          -
-      IntelligentTieringConfigurations:
-        IntelligentTieringConfigurations
-      InventoryConfigurations:
-        InventoryConfigurations
-      LifecycleConfiguration:
-        Rules:
-          -
-      LoggingConfiguration:
-        DestinationBucketName: "String"
-        LogFilePrefix: "String"
-      MetricsConfigurations:
-        MetricsConfigurations
-      NotificationConfiguration:
-        LambdaConfigurations:
-          -
-        QueueConfigurations:
-          -
-        TopicConfigurations:
-          -
-      ObjectLockConfiguration:
-        ObjectLockEnabled: "String"
-      ObjectLockEnabled: false
-      OwnershipControls:
-        Rules:
-          -
+    Properties:     
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
