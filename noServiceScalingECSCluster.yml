@@ -6,16 +6,16 @@ Parameters:
   VpcId:
     Type: 'AWS::EC2::VPC::Id'
     Description: Select a VPC that allows instances to access the Internet.
-  LBSubnetId:
+  SubnetId:
     Type: 'List<AWS::EC2::Subnet::Id>'
-    Description: Select at least two public subnets in your selected VPC.
+    Description: Select at least two subnets in your selected VPC.
   DesiredCapacity:
     Type: Number
     Default: '1'
     Description: Number of instances to launch in your ECS cluster.
   MaxSize:
     Type: Number
-    Default: '3'
+    Default: '1'
     Description: Maximum number of instances that can be launched in your ECS cluster.
   InstanceType:
     Description: EC2 instance type
@@ -174,7 +174,7 @@ Resources:
       LoadBalancerAttributes:
         - Key: idle_timeout.timeout_seconds
           Value: '30'
-      Subnets: !Ref LBSubnetId
+      Subnets: !Ref SubnetId
       SecurityGroups:
         - !Ref EcsSecurityGroup
   ALBListener:
@@ -216,11 +216,13 @@ Resources:
   ECSAutoScalingGroup:
     Type: 'AWS::AutoScaling::AutoScalingGroup'
     Properties:
-      VPCZoneIdentifier: !Ref LBSubnetId
+      VPCZoneIdentifier: !Ref SubnetId
       LaunchConfigurationName: !Ref ContainerInstances
       MinSize: '1'
       MaxSize: !Ref MaxSize
       DesiredCapacity: !Ref DesiredCapacity
+      TargetGroupARNs:
+        - !Ref ECSTG
     CreationPolicy:
       ResourceSignal:
         Timeout: PT15M
@@ -296,56 +298,6 @@ Resources:
                   - 'ec2:Describe*'
                   - 'ec2:AuthorizeSecurityGroupIngress'
                 Resource: '*'
-  ServiceScalingTarget:
-    Type: 'AWS::ApplicationAutoScaling::ScalableTarget'
-    DependsOn: service
-    Properties:
-      MaxCapacity: 2
-      MinCapacity: 1
-      ResourceId: !Join 
-        - ''
-        - - service/
-          - !Ref ECSCluster
-          - /
-          - !GetAtt 
-            - service
-            - Name
-      RoleARN: !GetAtt 
-        - AutoscalingRole
-        - Arn
-      ScalableDimension: 'ecs:service:DesiredCount'
-      ServiceNamespace: ecs
-  ServiceScalingPolicy:
-    Type: 'AWS::ApplicationAutoScaling::ScalingPolicy'
-    Properties:
-      PolicyName: AStepPolicy
-      PolicyType: StepScaling
-      ScalingTargetId: !Ref ServiceScalingTarget
-      StepScalingPolicyConfiguration:
-        AdjustmentType: PercentChangeInCapacity
-        Cooldown: 60
-        MetricAggregationType: Average
-        StepAdjustments:
-          - MetricIntervalLowerBound: 0
-            ScalingAdjustment: 200
-  ALB500sAlarmScaleUp:
-    Type: 'AWS::CloudWatch::Alarm'
-    Properties:
-      EvaluationPeriods: '1'
-      Statistic: Average
-      Threshold: '10'
-      AlarmDescription: Alarm if our ALB generates too many HTTP 500s.
-      Period: '60'
-      AlarmActions:
-        - !Ref ServiceScalingPolicy
-      Namespace: AWS/ApplicationELB
-      Dimensions:
-        - Name: LoadBalancer
-          Value: !GetAtt 
-            - ECSALB
-            - LoadBalancerFullName
-      ComparisonOperator: GreaterThanThreshold
-      MetricName: HTTPCode_ELB_5XX_Count
   EC2Role:
     Type: 'AWS::IAM::Role'
     Properties:
@@ -404,7 +356,3 @@ Resources:
       Path: /
       Roles:
         - !Ref EC2Role
-Outputs:
-  ecsSecurityGroupID:
-    Description: A reference to the created Securty Group
-    Value: !Ref EcsSecurityGroup

@@ -119,7 +119,7 @@ Resources:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [ 0, !GetAZs  '' ]
       CidrBlock: !Ref PrivateSubnet1CIDR
-      MapPublicIpOnLaunch: true
+      MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName} Private Subnet (AZ1)
@@ -314,14 +314,6 @@ Resources:
        RouteTableId: !Ref PrivateDBRouteTable
        DestinationCidrBlock: 0.0.0.0/0
        NatGatewayId: !Ref NatGateway2
-
-  NoIngressSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupName: "no-ingress-sg"
-      GroupDescription: "Security group with no ingress rule"
-      VpcId: !Ref VPC
-
 Outputs:
   VPC:
     Description: A reference to the created VPC
@@ -334,7 +326,3 @@ Outputs:
   PrivateSubnets:
     Description: A list of the private subnets
     Value: !Join [ ",", [ !Ref PrivateSubnet1, !Ref PrivateDBSubnet1,!Ref PrivateSubnet2,!Ref PrivateDBSubnet2,!Ref PrivateSubnet3,!Ref PrivateDBSubnet3 ]]
-
-  NoIngressSecurityGroup:
-    Description: Security group with no ingress rule
-    Value: !Ref NoIngressSecurityGroup

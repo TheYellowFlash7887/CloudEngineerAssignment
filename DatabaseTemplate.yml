@@ -44,7 +44,6 @@ Parameters:
   SecondSubnetId:
     Type: AWS::EC2::Subnet::Id
     Description: Select a second subnet ID for database subnet. Preferably private subnet
-  
   VPCIDCIDR:
     Type: String
     Description: VPC CIDR, used for DB security group

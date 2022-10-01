@@ -14,11 +14,11 @@ Parameters:
   DesiredCapacity:
     Type: Number
     Default: '1'
-    Description: Number of instances to launch in your ECS cluster.
+    Description: Number of instances to launch in your cluster.
   MaxSize:
     Type: Number
     Default: '1'
-    Description: Maximum number of instances that can be launched in your ECS cluster.
+    Description: Maximum number of instances that can be launched in your cluster.
   InstanceType:
     Description: EC2 instance type
     Type: String
@@ -81,12 +81,12 @@ Resources:
   SecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: ECS Security Group
+      GroupDescription:  Security Group
       VpcId: !Ref VpcId
   SecurityGroupHTTPinbound:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
-      GroupId: !Ref EcsSecurityGroup
+      GroupId: !Ref SecurityGroup
       IpProtocol: tcp
       FromPort: 80
       ToPort: 80
@@ -94,7 +94,7 @@ Resources:
   SecurityGroupSSHinbound:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
-      GroupId: !Ref EcsSecurityGroup
+      GroupId: !Ref SecurityGroup
       IpProtocol: tcp
       FromPort: 22
       ToPort: 22
@@ -102,11 +102,11 @@ Resources:
   SecurityGroupALBports:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
-      GroupId: !Ref EcsSecurityGroup
+      GroupId: !Ref SecurityGroup
       IpProtocol: tcp
       FromPort: 31000
       ToPort: 61000
-      SourceSecurityGroupId: !Ref EcsSecurityGroup
+      SourceSecurityGroupId: !Ref SecurityGroup
   AutoScalingGroup:
     Type: 'AWS::AutoScaling::AutoScalingGroup'
     Properties:
@@ -129,7 +129,7 @@ Resources:
         - !Ref 'AWS::Region'
         - AMIID
       SecurityGroups:
-        - !Ref EcsSecurityGroup
+        - !Ref SecurityGroup
       InstanceType: !Ref InstanceType
       IamInstanceProfile: !Ref EC2InstanceProfile
       KeyName: !Ref KeyName
@@ -142,7 +142,7 @@ Resources:
             - '/opt/aws/bin/cfn-signal -e $? '
             - '         --stack '
             - !Ref 'AWS::StackName'
-            - '         --resource ECSAutoScalingGroup '
+            - '         --resource AutoScalingGroup '
             - '         --region '
             - !Ref 'AWS::Region'
             - |+
@@ -168,8 +168,6 @@ Resources:
                   - 'application-autoscaling:*'
                   - 'cloudwatch:DescribeAlarms'
                   - 'cloudwatch:PutMetricAlarm'
-                  - 'ecs:DescribeServices'
-                  - 'ecs:UpdateService'
                 Resource: '*'
   EC2InstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
@@ -190,7 +188,7 @@ Resources:
               - 'sts:AssumeRole'
       Path: /
       Policies:
-        - PolicyName: ecs-service
+        - PolicyName: service
           PolicyDocument:
             Statement:
               - Effect: Allow

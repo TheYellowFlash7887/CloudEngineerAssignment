@@ -2,15 +2,6 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: |
   Top level stack that deploys the related stacks for the assignment 
 Parameters:
-  VPCURL:
-    Description: An environment name that is prefixed to resource names
-    Type: String
-  ECSURL:
-    Description: An environment name that is prefixed to resource names
-    Type: String
-  DBURL:
-    Description: An environment name that is prefixed to resource names
-    Type: String
   EnvironmentName:
     Description: An environment name that is prefixed to resource names
     Type: String
@@ -64,8 +55,6 @@ Parameters:
     Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
     Type: String
     Default: 10.192.25.0/24
-Metadata:
-  
 Mappings:
   
 Conditions:
@@ -74,13 +63,9 @@ Resources:
   VPCStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      NotificationARNs:
-        NotificationARNs
       Parameters:
-      Tags:
-        Tags
+
       TemplateURL: "String" # Required
-      TimeoutInMinutes: Number
 Transform:
   
 Outputs:
