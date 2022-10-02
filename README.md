@@ -1,6 +1,12 @@
 
 # CloudEngineerAssignment
 Deployment Steps: 
+
+
+The nested stack uses templates that are publicly hosted in an S3 bucket, however if they become unavailable the templates will need to be uploaded to S3 and the Object URLs passed to the parameters of the nested stack. 
+
+
+Currently the nested stack defaults values are using templates Located in a public S3 bucket 
 1. Deploy the VPC stack with the name: VPCTemplate.yml
 2. Deploy the stack : NestedStack.yml
     Deployment Steps without using the nested stack:
@@ -22,20 +28,28 @@ General improvements :
 2. S3 access: As there was no specific use case defined the S3 bucket was defined with no public access as the default. Depending on the information being stored in S3 access logging as well as lifecycle configurations should be applied, additionally depending on the importance of the data stored in S3 it can be replicated to additional regions as well as encrypted at rest. 
 3. improved monitoring, Cloud watch 
 4. DB template improvements/modifications : The database template could be improved by taking a DB snapshot to create the DB instance from, as well as creating DB snapshots when updated and deleted. There is a possibility that this can be provided as an optional input parameter to a CFN template however I was unable to confirm this and as my experience with the DB resources in CFN is limited. 
-While I followed the best practices of the blog provided by AWS the template they produced at the end used a property of the AWS::RDS::DBCluster resource which seems to have a bug. This property allowed for the creation of CloudWatch logs groups that later resources depending on existing. However due to an underlying issue with Cloudformation the dependant resource would begin its create workflow even though the group did not yet exist. While the !ref intrinsic Cloudformation functions as well as the DepensOn tag should have explicitly prevented this issue. I instead had to modify the template to create the groups with their specific resource 
+While I followed the best practices of the blog provided by AWS the template they produced at the end used a property of the AWS::RDS::DBCluster resource which seems to have a bug. This property allowed for the creation of CloudWatch logs groups that later resources depending on existing. However due to an underlying issue with Cloudformation the dependant resource would begin its create workflow even though the group did not yet exist. While the !ref intrinsic Cloudformation functions as well as the DependsOn tag should have explicitly prevented this issue. I instead had to modify the template to create the groups with their specific resource 
 4. VPC deployed with nested stack: Deploying the VPC as part of the nested stack would improve ease of maintaining the infra
 5. Encryption at rest / in transit: Depending on the severity of the data that is being processes and stored in the system Encryption at rest in the S3 bucket as well as encrypting the traffic at the load balancer 
 6. Autohealing for Az/Region issues 
 7. R53 DNS name for the website URL targeting the LB 
-8. EC2 instance Capacity: If EC2 capacity is unavailable for a specified EC2 instance type it will prevent them from starting, using Reserved instances avoids this by ensuring users have the amount of capacity they expect. Alternatively multiple instance types can be provided to Autoscaling groups.
-
+8. EC2 instance Capacity: If EC2 capacity is unavailable for a specified EC2 instance type it will prevent them from starting, using Reserved instances avoids this by ensuring users have the amount of capacity they expect. Alternatively multiple instance types can be provided to Autoscaling groups. 
 ========= Disaster Recovery plan =======
 
-1. Single/multi AZ failure: CloudFormation templates can be updated to use Azs not experiencing issues, full outages are avoided by using multiple Az and load balancers
-2. Networking issues for the Region: Infrastructure can be deployed in another region and the hosted zone for the DNS name of the website changed to the new Loadbalancer  
-3. DB failure: Database restoration from the last available snapshot, this can be done outside the Cloudformation stack to ensure the fastest recovery possible, the database can be imported to the stack again once the service is restored to operation. 
-4. DB degraded performance: Likely related to resource contention with the DB instance, increasing the DB instance class will resolve this issue. 
-5. EC2 instance failing to create: If EC2 instances are failing to start due to region capacity a new Az can be selected or a different instance type. This can be done by updating the stack 
-6. AWS Service issues for the Region: Resolving issues with the components of managed services falls under the shared responsibility model, having said this these issues can be mitigated somewhat by using EU-west-1 and US-east-1 whenever possible, this is due to how AWS deploy their new code for services.
-7. Containers failing to Scale up as part of service auto scaling: Containers failing to start usually indicates some issue of resource contention on the EC2 instances in the cluster. Increasing the number of instances or the instance class to provide more resources ill resolve this issue. 
-8. DDOs attacks:  Mitigated by AWS shield, specifics of weather or not scaling up infra to ensure no downtime depends on the use case
+
+1. Data storage Components 
+
+	A. Backup and Restore: Make use of Database snapshots /S3 object replication data sources can always be rebuilt from a specified point in time snapshot. This is relatively low cost but requires the data sources be rebuild from the snapshots resulting in the longest downtime for the system. This Solution increases the RTO significantly in return for lowering the cost of the solution. The RPO is decreased as the restoration point depends on the last snapshot. This Solution also adds additional overhead of regularly testing backups to ensure that the restoration process is successful. 
+	B. Pilot light: Provision additional resources with replicas of the data in the active resources. E.g. Database replicas. When the resources in production fail these resources are ready to take their place ensuring the RTO is as low as possible and the RPO is as up to date with the last known state of the data sources as possible. Replication of data and data transport to additional regions does impost a large cost on this solution. 
+
+	2. Non Data Storage Components 
+
+Assuming this is some sort of production system, doing a manual re-provision of impacted resources once an issue occurs is likely to be an unacceptable solution as this has the longest RTO and can't easily be done by someone that doesn't have knowledge of the deployment mechanism for the infrastructure.  
+
+	A. Pilot light: Infrastructure assuming the data required to run the system is using some sort of active backup solution additional infrastructure can be deploy in the same region as these backups but scaled down. In the event of an update an automate system such as a CloudWatch alarm could change the hosted zone of the Route 53 DNS record for the application to the inactive zone, this zone is scaled  down by default but using services such as auto scaling so that once the traffic is diverted the system will scale itself up. The RPO of this solution is high as the data being used by the system is replicated from the production system ensuring as little as possible is lost. Depending on the size of the workload running the RTO can be quiet low as services scale up, for example it make take several minutes for the additional EC2 Instances to start from when the ASG alarms fire. 
+	 
+	B. Warm Standby: This concept is similar to the Pilot Light but the infrastructure is always scaled up and ready to serve traffic, this solution will ensure that there is always some scaled up capacity to handle any production requests without having an entire replica of the production system. This increases the RTO when compared with the Pilot light solution with significantly increasing costs. There is no improvement to the RPO.
+	
+	C. Active/Active: Deploy the infra in multiple regions scaled up and actively serving traffic. This solution reduces the RTO to zero as there is a second environment ready to serve traffic if one fails. The RPO is also resolved by the multi region. AWS managed Database services can mitigate the issues with data consistency from processing user requests in multiple regions, however there could be significant challenges when using this approach outside of just data consistency. 
+
+
