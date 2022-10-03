@@ -14,12 +14,14 @@ Currently the nested stack defaults values are using templates Located in a publ
     4. The remaining stacks can be deployed in any order 
 
 ============================Assumptions============================
+
 My understanding was that this was a basic 3 layer App consisting of a public subnet users access with access to the private subnets or logic tier, that hosts the ECS cluster running the app. The private subnets containing the ECS cluster running the app would be exclusively able to access the database subnet or data tier. The provided Diagram also included Ec2 instances and a ECS cluster without scaling in the application subnets, my understanding was that the ECS cluster with Cluster autoscaling was the primary cluster that would host the app and access the database. As such the security group this cluster creates is the target for the ingress group of the database cluster. This could be changed by having the other stacks use the same security group enabling all resources to contact the DB instance however this would be outline in the design decisions prior to implementation. 
 Known issues: 
 1. As my AWS account was newly created the limit for EIPs prevented two instances of the VPC existing at once in the same region as it uses 4 EIPs for a single instance. AWS failed to approve my limit increase due to the age of the account. 
 2. The VPC stack is deployed separately from the nested stack due to the limit of EIPs on the testing account used, two instances of the VPC stack would hit the limit as such it was separated to ensure the stack was fully tested. While the nested stack could have been modified to create the VPC the inability to test if two of these nested stacks would successfully create meant that I decided to leave it independent. 
 
-=====================General improvements=================================================
+=====================General improvements======================
+
 1. AutoScalingReplacingUpdate is current set to true, this could be improved by optionally using   AutoScalingRollingUpdate which would allow for the instances to be updated without creating an entirely new autoscaling group and instances, this could be important for users with limited EC2 pools like Reserved instances, they may not be able to create an entire set of duplicate instances before the existing instances are deleted.  
 2. S3 access: As there was no specific use case defined the S3 bucket was defined with no public access as the default. Depending on the information being stored in S3 access logging as well as lifecycle configurations should be applied, additionally depending on the importance of the data stored in S3 it can be replicated to additional regions as well as encrypted at rest. 
 3. Improved monitoring using Cloud watch to trigger lambda functions, alert emails or automated actions such as scaling, when certain thresholds are breached. 
