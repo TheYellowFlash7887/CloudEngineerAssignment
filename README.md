@@ -1,6 +1,6 @@
 
 # CloudEngineerAssignment
-Deployment Steps: 
+=====================Deployment Steps=====================
 
 The nested stack uses templates that are publicly hosted in an S3 bucket, however if they become unavailable the templates will need to be uploaded to S3 and the Object URLs passed to the parameters of the nested stack. 
 
@@ -13,13 +13,13 @@ Currently the nested stack defaults values are using templates Located in a publ
     3. Deploy the DB stack using the Output value of the ECS cluster template: DatabaseTemplate.yml
     4. The remaining stacks can be deployed in any order 
 
-Assumptions:
+============================Assumptions============================
 My understanding was that this was a basic 3 layer App consisting of a public subnet users access with access to the private subnets or logic tier, that hosts the ECS cluster running the app. The private subnets containing the ECS cluster running the app would be exclusively able to access the database subnet or data tier. The provided Diagram also included Ec2 instances and a ECS cluster without scaling in the application subnets, my understanding was that the ECS cluster with Cluster autoscaling was the primary cluster that would host the app and access the database. As such the security group this cluster creates is the target for the ingress group of the database cluster. This could be changed by having the other stacks use the same security group enabling all resources to contact the DB instance however this would be outline in the design decisions prior to implementation. 
 Known issues: 
 1. As my AWS account was newly created the limit for EIPs prevented two instances of the VPC existing at once in the same region as it uses 4 EIPs for a single instance. AWS failed to approve my limit increase due to the age of the account. 
 2. The VPC stack is deployed separately from the nested stack due to the limit of EIPs on the testing account used, two instances of the VPC stack would hit the limit as such it was separated to ensure the stack was fully tested. While the nested stack could have been modified to create the VPC the inability to test if two of these nested stacks would successfully create meant that I decided to leave it independent. 
 
-General improvements : 
+=====================General improvements=================================================
 1. AutoScalingReplacingUpdate is current set to true, this could be improved by optionally using   AutoScalingRollingUpdate which would allow for the instances to be updated without creating an entirely new autoscaling group and instances, this could be important for users with limited EC2 pools like Reserved instances, they may not be able to create an entire set of duplicate instances before the existing instances are deleted.  
 2. S3 access: As there was no specific use case defined the S3 bucket was defined with no public access as the default. Depending on the information being stored in S3 access logging as well as lifecycle configurations should be applied, additionally depending on the importance of the data stored in S3 it can be replicated to additional regions as well as encrypted at rest. 
 3. Improved monitoring using Cloud watch to trigger lambda functions, alert emails or automated actions such as scaling, when certain thresholds are breached. 
@@ -30,7 +30,8 @@ While I followed the best practices of the blog provided by AWS the template the
 6. Autohealing for Az/Region issues: Using metrics gathered in Cloudwatch, automated hosted zone target swaps could be implemented based on certain conditions in a region. 
 7. R53 DNS name for the website URL targeting the LB 
 8. EC2 instance Capacity: If EC2 capacity is unavailable for a specified EC2 instance type it will prevent them from starting, using Reserved instances avoids this by ensuring users have the amount of capacity they expect. Alternatively multiple instance types can be provided to Autoscaling groups. 
-========= Disaster Recovery plan =======
+
+========= Disaster Recovery plan ===================================
 
 1. Data storage Components 
     A. Backup and Restore: Make use of Database snapshots /S3 object replication data sources can always be rebuilt from a specified point in time snapshot. This is relatively low cost but requires the data sources be rebuild from the snapshots resulting in the longest downtime for the system. This Solution increases the RTO significantly in return for lowering the cost of the solution. The RPO is decreased as the restoration point depends on the last snapshot. This Solution also adds additional overhead of regularly testing backups to ensure that the restoration process is successful. 
